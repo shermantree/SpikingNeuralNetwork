@@ -29,8 +29,8 @@ class IdealSNN:
         self.vmem = []
         self.vout = []
         for layer in self.structure[1:]:
-            self.vmem.append(torch.zeros((1,layer)))
-            self.vout.append(torch.zeros((1, layer)))
+            self.vmem.append(torch.zeros((layer)))
+            self.vout.append(torch.zeros((layer)))
 
     def load_input(self, input):
         self.input = input
@@ -56,7 +56,7 @@ class IdealSNN:
         while time < self.inputlength:
             for layernum in range(len(self.weight)):
                 if layernum == 0: # if first layer, use input signal
-                    temp = torch.mul(self.input[layernum][(int)(time/self.timesteplength)], self.weight[layernum])
+                    temp = torch.mul(self.input[(int)(time/self.timesteplength)], self.weight[layernum])
                     self.vmem[layernum] = torch.add(self.vmem[layernum], temp)
                     for i in range(len(self.vmem[layernum])):
 
