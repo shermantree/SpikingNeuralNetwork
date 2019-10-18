@@ -30,4 +30,4 @@ class Dataloader:
 
 if __name__ == "__main__":
     d = Dataloader()
-    d.__getitem__(1)
+    sig = d.__getitem__(1)[0]

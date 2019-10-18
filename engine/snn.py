@@ -1,8 +1,8 @@
 import torch
-
+from util import dataloader
 
 class IdealSNN:
-    def __init__(self, structure = [728, 10], pulsewidth = 100e-9, inputlength = 10e-6, cmem = 10e-12, vt = 0.5 ):
+    def __init__(self, structure = [784, 10], pulsewidth = 100e-9, inputlength = 10e-6, cmem = 10e-12, vt = 0.5 ):
         '''
 
         :param structure:
@@ -21,8 +21,8 @@ class IdealSNN:
         self.vmem = []
         self.vout = []
         self.input  = None
+        self.label = 0
         self.reset()
-
 
     def reset(self):
 
@@ -33,7 +33,8 @@ class IdealSNN:
             self.vout.append(torch.zeros((layer)))
 
     def load_input(self, input):
-        self.input = input
+        self.input = input[0]
+        self.label = input[1]
 
     def set_weight_ideal(self, weightmatrix):
         '''
@@ -48,15 +49,19 @@ class IdealSNN:
     def run(self):
         '''
         @brief run snn for single image data
-        :return: classification result
+        :return: classification result (true/false, label)
         '''
         time = 0
+        score = torch.zeros(len(self.vout[len(self.weight) - 1]))
         # repeat this for the time an input signal is given
-        # do x*W (not W*x)
+        # do  W*x
         while time < self.inputlength:
             for layernum in range(len(self.weight)):
                 if layernum == 0: # if first layer, use input signal
-                    temp = torch.mul(self.input[(int)(time/self.timesteplength)], self.weight[layernum])
+                    input = self.input[(int)(time/self.timesteplength)].view(self.structure[0], 1)
+
+                    temp = torch.mm(self.weight[layernum], input).flatten()
+                    #temp = torch.mul(input, self.weight[layernum])
                     self.vmem[layernum] = torch.add(self.vmem[layernum], temp)
                     for i in range(len(self.vmem[layernum])):
 
@@ -76,11 +81,24 @@ class IdealSNN:
                         elif self.vmem[layernum][i] < 0:
                             self.vmem[layernum][i] = 0
 
+            score = torch.add(score, self.vout[len(self.weight) - 1])
             time += self.timesteplength
+        score *= self.vt
+        print (score)
+        score += self.vmem[len(self.weight) - 1]
+        if score.max() == score[self.label]:
+            return True, self.label
+        return False, self.label
 
-        print (self.o)
-        return
 
-if __name__ == '__main__()':
+if __name__ == '__main__':
+    d = dataloader.Dataloader()
+    single = d.__getitem__(1)
     snn = IdealSNN()
-    snn.run()
+    print ("here")
+    w = 0.0001*torch.ones((10, 784))
+    for i in range(784):
+        w[2][i] = 1
+    snn.set_weight_ideal([w])
+    snn.load_input(single)
+    print (snn.run())
