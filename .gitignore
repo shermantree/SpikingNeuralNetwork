@@ -1,2 +1,6 @@
 /util/data
+/util/*.csv
+/data
+
 *.pt
+*.pyc

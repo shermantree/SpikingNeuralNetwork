@@ -43,7 +43,7 @@ class IdealSNN:
         '''
         assert (len(weightmatrix) == len(self.structure) - 1)
         for w in weightmatrix:
-            self.weight.append(torch.tensor(w))
+            self.weight.append(torch.tensor(w).type(torch.FloatTensor))
 
 
     def run(self):
@@ -63,6 +63,7 @@ class IdealSNN:
                     temp = torch.mm(self.weight[layernum], input).flatten()
                     #temp = torch.mul(input, self.weight[layernum])
                     self.vmem[layernum] = torch.add(self.vmem[layernum], temp)
+
                     for i in range(len(self.vmem[layernum])):
 
                         if self.vmem[layernum][i] > self.vt:
@@ -84,7 +85,7 @@ class IdealSNN:
             score = torch.add(score, self.vout[len(self.weight) - 1])
             time += self.timesteplength
         score *= self.vt
-        print (score)
+
         score += self.vmem[len(self.weight) - 1]
         if score.max() == score[self.label]:
             return True, self.label

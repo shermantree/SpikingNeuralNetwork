@@ -6,7 +6,7 @@ import torch
 class Dataloader:
     def __init__(self, pulsewidth = 100e-9, inputlength = 10e-6):
         self.mnist_trainset = datasets.MNIST('./data', download=True, train=False)
-        self.timestep = (int)(inputlength/pulsewidth)
+        self.timestep = (int)((inputlength+0.9*pulsewidth)/pulsewidth)
 
 
     def __getitem__(self, item):
