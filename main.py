@@ -5,11 +5,11 @@ from tkinter import messagebox
 from engine import snn
 from util import dataloader
 from util import weightloader
-
+from decimal import Decimal
 
 class Mainwindow():
     def __init__(self):
-
+        self.model = None
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(self.window, width = 320, height = 240, relief="solid", bd=0)
 
@@ -45,6 +45,19 @@ class Mainwindow():
         self.num = tkinter.StringVar()
         self.currentsamplelabel = tkinter.Label(self.window, textvariable = self.num, width = 10, height = 1, relief = 'solid')
         self.individualacc = []
+        self.energyneuronlabelval = tkinter.StringVar()
+        self.energysynapselabelval = tkinter.StringVar()
+        self.energytotallabelval = tkinter.StringVar()
+        self.poweraveragelabelval = tkinter.StringVar()
+        self.energyneuronlabel = tkinter.Label(self.window, textvariable=self.energyneuronlabelval, width=10, height=1, relief='solid')
+        self.energysynapselabel = tkinter.Label(self.window, textvariable=self.energysynapselabelval, width=10, height=1, relief='solid')
+        self.energytotallabel = tkinter.Label(self.window, textvariable=self.energytotallabelval, width=10, height=1, relief='solid')
+        self.poweraveragelabel = tkinter.Label(self.window, textvariable=self.poweraveragelabelval, width=10, height=1,
+                                              relief='solid')
+
+        self.energyneuron = 0
+        self.energysynapse = 0
+
         font = tkinter.font.Font(family="맑은 고딕", size=8, slant="italic")
         for i in range(len(self.individualcorrect)):
             self.individualacc.append(tkinter.StringVar())
@@ -78,6 +91,10 @@ class Mainwindow():
         self.conductancefilefield.insert(0, "None")
         self.canvas.place(x=640, y=40)
         self.button.place(x=80, y=280)
+        self.poweraveragelabel.place(x=740, y=560)
+        self.energytotallabel.place(x=740, y=520)
+        self.energyneuronlabel.place(x=740, y=480)
+        self.energysynapselabel.place(x=740, y=440)
         self.totalacclabel.place(x=740, y=400)
         self.currentsamplelabel.place(x= 740, y= 360)
         self.window.mainloop()
@@ -99,6 +116,10 @@ class Mainwindow():
         tkinter.Label(self.window, text="Spike width: ").place(x=20, y=160)
         tkinter.Label(self.window, text="Time / single input: ").place(x=20, y=190)
         tkinter.Label(self.window, text="Energy / spike: ").place(x=20, y=220)
+        tkinter.Label(self.window, text="Average Power: ").place(x=620, y=560)
+        tkinter.Label(self.window, text="Total Energy: ").place(x=620, y=520)
+        tkinter.Label(self.window, text="Neuron Energy: ").place(x=620, y=480)
+        tkinter.Label(self.window, text="Synapse Energy: ").place(x=620, y=440)
         tkinter.Label(self.window, text="Total Accuracy: ").place(x=620, y=400)
         tkinter.Label(self.window, text="Current Sample: ").place(x=620, y=360)
         tkinter.Label(self.window, text="Conductance File: ").place(x=20, y=250)
@@ -153,11 +174,33 @@ class Mainwindow():
         else:
             c = False
             print ("Using default conductance...")
-        if self.networklist.get(0) == "Single Layer":
+
+        print ("WW", self.networklist.curselection())
+        if self.networklist.curselection()[0] == 0:
             weight = weightloader.WeightloaderSinglelayer("weight.csv", c)
+            self.model.minconductance = weight.get_minconductance()
             return weight.get_weight()
-        elif self.networklist.get(0) == "Multi Layer":
-            print ("MULTILAYER NOT IMPLEMENTED")
+
+        elif self.networklist.curselection()[0] == 1:
+            # TODO: open two files and
+            weight = weightloader.WeightloaderMultilayer("weight9757_1.csv", "weight9757_2.csv", c)
+            self.model.minconductance = weight.get_minconductance()
+            return weight.get_weight()
+
+    def update_energy(self, energy , samplenum):
+        self.energysynapse = energy[0]
+        self.energyneuron = energy[1]
+        energytotal = self.energyneuron + self.energysynapse
+        time = (samplenum + 1)*self.singleinputtime
+
+        self.energyneuronlabelval.set('%.2E' % Decimal(str(self.energyneuron)) + " J")
+
+
+
+        self.energysynapselabelval.set(str('%.2E' % Decimal(str(self.energysynapse))) + " J")
+        self.energytotallabelval.set(str('%.2E' % Decimal(str(energytotal))) + " J")
+        self.poweraveragelabelval.set(str('%.2E' % Decimal(str(energytotal/time))) + " W")
+
 
 
     def update_accuracy(self, correct, label):
@@ -235,24 +278,33 @@ class Mainwindow():
         self.individualnumber = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.totalacc = 0
         self.samplenumber = 0
+        print (self.cmem)
+        if self.networklist.get(self.networklist.curselection()) == "Single Layer":
+            print("running single-layer")
+            # model 만들고
+            self.model = snn.IdealSNN(structure = [784, 10], pulsewidth = self.spilkewidth, inputlength = self.singleinputtime, cmem = self.cmem, vt = self.vth)
 
-        # model 만들고
-        model = snn.IdealSNN(structure = [784, 10], pulsewidth = self.spilkewidth, inputlength = self.singleinputtime, cmem = self.cmem, vt = self.vth)
-
-        # weight 로딩하고
-        model.set_weight_ideal(self.load_weight())
+            # weight 로딩하고
+            self.model.set_weight_ideal(self.load_weight())
+        else:
+            print ("running multi-layer")
+            self.model = snn.IdealSNN(structure=[784, 128, 10], pulsewidth=self.spilkewidth, inputlength=self.singleinputtime,
+                                 cmem=self.cmem, vt=self.vth)
+            self.model.set_weight_ideal(self.load_weight())
 
         # dataloader 켜고
         data = dataloader.Dataloader(pulsewidth = self.spilkewidth, inputlength = self.singleinputtime)
         self.currentsamplelabel['text'] = "aaaa"
         for i, item in enumerate(data):
+            print (i)
             self.samplenumber += 1
             self.num.set(str(self.samplenumber) + " / 10000")
 
-            model.reset()
-            model.load_input(item)
-            correct, label = model.run()
+            self.model.reset()
+            self.model.load_input(item)
+            correct, label = self.model.run()
             self.update_accuracy(correct, label)
+            self.update_energy(self.model.get_energy(), i)
 
 
         # 샘플 하나씩 로딩하면서 acc 도출.
