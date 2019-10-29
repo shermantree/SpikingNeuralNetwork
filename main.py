@@ -6,6 +6,7 @@ from engine import snn
 from util import dataloader
 from util import weightloader
 from decimal import Decimal
+import time
 
 class Mainwindow():
     def __init__(self):
@@ -230,7 +231,6 @@ class Mainwindow():
                 self.canvas.coords(self.individualbar[i], 15 + i * 30 - 5, 220, 15 + i * 30 + 5, 220-200*self.individualcorrect[i] / self.individualnumber[i])
         self.window.update_idletasks()
 
-        pass
 
     def check_input(self):
 
@@ -297,17 +297,28 @@ class Mainwindow():
         self.currentsamplelabel['text'] = "aaaa"
         for i, item in enumerate(data):
             print (i)
-            self.samplenumber += 1
-            self.num.set(str(self.samplenumber) + " / 10000")
-
-            self.model.reset()
-            self.model.load_input(item)
-            correct, label = self.model.run()
-            self.update_accuracy(correct, label)
-            self.update_energy(self.model.get_energy(), i)
+            self.loop(i, item)
 
 
-        # 샘플 하나씩 로딩하면서 acc 도출.
+
+    def loop(self, i, item):
+        self.samplenumber += 1
+        self.num.set(str(self.samplenumber) + " / 10000")
+
+        self.model.reset()
+        self.model.load_input(item)
+        correct, label = self.model.run()
+        print(correct, label)
+        #self.window.after(1, self.update_accuracy, (correct, label))
+        self.update_accuracy(correct, label)
+        self.currentsamplelabel.update()
+        self.energyneuronlabel.update()
+        self.energysynapselabel.update()
+        self.poweraveragelabel.update()
+        self.totalacclabel.update()
+        self.update_energy(self.model.get_energy(), i)
+        self.energytotallabel.update()
+
 
 
 w = Mainwindow()

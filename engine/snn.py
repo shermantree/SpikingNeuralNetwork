@@ -64,7 +64,6 @@ class IdealSNN:
         # repeat this for the time an input signal is given
         # do  W*x
         while time < self.inputlength:
-            print(len(self.weight))
             for layernum in range(len(self.weight)):
                 if layernum == 0: # if first layer, use input signal
                     input = self.input[(int)(time/self.timesteplength)].view(self.structure[0], 1)
@@ -95,7 +94,6 @@ class IdealSNN:
                             self.energyneuron += 0.5 * self.cmem * self.vt * self.vt + self.spikeenergy
                         elif self.vmem[layernum][i] < 0:
                             self.vmem[layernum][i] =0
-            print (self.vout[len(self.weight) - 1], self.minconductance)
             score = torch.add(score, self.vout[len(self.weight) - 1])
             time += self.timesteplength
         score *= self.vt
