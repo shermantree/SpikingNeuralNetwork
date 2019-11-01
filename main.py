@@ -178,7 +178,7 @@ class Mainwindow():
 
         print ("WW", self.networklist.curselection())
         if self.networklist.curselection()[0] == 0:
-            weight = weightloader.WeightloaderSinglelayer("weight.csv", c)
+            weight = weightloader.WeightloaderSinglelayer("weight_retrain.csv", c)
             self.model.minconductance = weight.get_minconductance()
             return weight.get_weight()
 

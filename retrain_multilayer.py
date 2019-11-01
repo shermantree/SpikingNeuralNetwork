@@ -1,7 +1,9 @@
 import torch
 from util import dataloader
 import numpy as np
-
+import matplotlib.pyplot as plt
+from util import weightloader
+error = 0
 class IdealSNN:
     def __init__(self, structure = [784, 10], pulsewidth = 100e-9, inputlength = 10e-6, cmem = 10e-12, vt = 0.5, readvoltage =1, spikeenergy=10e-12 ):
         '''
@@ -30,13 +32,6 @@ class IdealSNN:
         self.reset()
         self.minconductance = 0
 
-    def reset(self):
-
-        self.vmem = []
-        self.vout = []
-        for layer in self.structure[1:]:
-            self.vmem.append(torch.zeros((layer)))
-            self.vout.append(torch.zeros((layer)))
 
     def load_input(self, input):
         self.input = input[0]
@@ -51,14 +46,12 @@ class IdealSNN:
         for w in weightmatrix:
             self.weight.append(torch.tensor(w).type(torch.FloatTensor))
 
-    def get_energy(self):
-        return self.energysynapse, self.energyneuron
-
     def run(self):
         '''
         @brief run snn for single image data
         :return: classification result (true/false, label)
         '''
+        global error
         time = 0
         score = torch.zeros(len(self.vout[len(self.weight) - 1]))
         # repeat this for the time an input signal is given
@@ -99,10 +92,39 @@ class IdealSNN:
         score *= self.vt
 
         score += self.vmem[len(self.weight) - 1]
-        if score.max() == score[self.label]:
-            return True, self.label
-        return False, self.label
+        if score.max() != score[self.label]:
+            #self.retrain(self.input, self.label)
+            error += 1
 
+
+
+
+    def reset(self):
+
+        self.vmem = []
+        self.vout = []
+        for layer in self.structure[1:]:
+            self.vmem.append(torch.zeros((layer)))
+            self.vout.append(torch.zeros((layer)))
+
+    def retrain(self, input, label):
+
+        print (len(input), label)
+        for i in range(len(input)):
+            input[i] = input[i].detach().numpy()
+        input = np.array(input)
+        input = np.transpose(input)
+        input = input.sum(axis=1) # input is in [784] shape
+        print (len(self.weight))
+        change = 1e-9 / 20
+
+        for o in range(10):
+            if o == label:
+                for i in range(784):
+                    self.weight[-1][o][i] += input[i]*change
+            else:
+                for i in range(784):
+                    self.weight[-1][o][i] -= input[i] * change
 
 
 
@@ -110,11 +132,34 @@ class IdealSNN:
 if __name__ == '__main__':
     d = dataloader.Dataloader()
     single = d.__getitem__(1)
-    snn = IdealSNN()
+    snn = IdealSNN(structure=[784, 128, 10])
     print ("here")
-    w = 0.0001*torch.ones((10, 784))
-    for i in range(784):
-        w[2][i] = 1
-    snn.set_weight_ideal([w])
-    snn.load_input(single)
-    print (snn.run())
+
+
+    #weight = weightloader.WeightloaderSinglelayer("weight.csv",0)
+    weight = weightloader.WeightloaderMultilayer("weight9757_1.csv", "weight9757_2.csv", "RRAM.csv")
+    snn.set_weight_ideal(weight.get_weight())
+
+    data = dataloader.Dataloader(train=True)
+    errorlog = []
+    for i, item in enumerate(data):
+
+
+        snn.reset()
+        snn.load_input(item)
+        snn.run()
+        print("score", i, error)
+        errorlog.append(error/(i+1))
+        if i > 2000: break
+
+    np.savetxt("weight9747_retrain1.csv", snn.weight[0].detach().numpy(), delimiter=',')
+    np.savetxt("weight9747_retrain2.csv", snn.weight[1].detach().numpy(), delimiter=',')
+    plt.plot(errorlog)
+
+    for y in range(1, 15, 1):
+        plt.axhline(color='gray', y=y/100, linewidth=0.5)
+    for x in range(100, 2000, 100):
+        plt.axvline(color='gray', x=x, linewidth=0.5)
+
+
+    plt.show()
